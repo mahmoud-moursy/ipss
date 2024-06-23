@@ -232,7 +232,7 @@ class IPSecuritySuite : ModInitializer {
         ipData.saveData()
 
         ctx.source.sendFeedback({
-            Text.literal("Locked account with username '" + playerProfile.name.string + "' and UUID '" + playerUuid + "' to the IP " + playerIp)
+            Text.literal("Locked account with username '" + playerProfile.name.string + "' and UUID '" + playerUuid + "' to your current IP.")
         }, true)
 
 

@@ -25,7 +25,9 @@ data class IPData(
     // Toggle whether members can lock their own IP.
     var canLockForSelf: Boolean?,
     // Toggles whether to allow VPNs or proxies
-    var vpnAllowed: Boolean?
+    var vpnAllowed: Boolean?,
+    // Toggles whether to reveal IPs or not
+    var revealIp: Boolean?
 )
 
 
@@ -40,7 +42,7 @@ class IPDataManager {
         try {
             ipData = Json.decodeFromStream<IPData>(inputStream)
         } catch (e: RuntimeException) {
-            ipData = IPData(apiKey = null, canLockForSelf = null, ipLocks = HashMap(), lastIp = HashMap(), strictMode = null, vpnAllowed = null)
+            ipData = IPData(apiKey = null, canLockForSelf = null, ipLocks = HashMap(), lastIp = HashMap(), strictMode = null, vpnAllowed = null, revealIp = null)
             this.saveData()
         }
     }

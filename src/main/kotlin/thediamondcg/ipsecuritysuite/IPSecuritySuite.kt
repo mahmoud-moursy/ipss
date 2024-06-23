@@ -53,6 +53,7 @@ class IPSecuritySuite : ModInitializer {
         config_get = config_get.then(literal("strict").executes(this::getStrictMode))
         config_get = config_get.then(literal("vpn").executes(this::getVpnMode))
         config_get = config_get.then(literal("self-lock").executes(this::getSelfLockMode))
+        config_get = config_get.then(literal("ip-reveal").executes(this::getIpReveal))
 
         config_set = config_set.then(literal("strict").then(
             argument("value", BoolArgumentType.bool()).executes(this::strictMode)
@@ -62,6 +63,9 @@ class IPSecuritySuite : ModInitializer {
         ))
         config_set = config_set.then(literal("self-lock").then(
             argument("value", BoolArgumentType.bool()).executes(this::selfLockMode)
+        ))
+        config_set = config_set.then(literal("ip-reveal").requires(this::hasOwner).then(
+            argument("value", BoolArgumentType.bool()).executes(this::setIpReveal)
         ))
 
         config = config.then(config_set)
@@ -184,7 +188,7 @@ class IPSecuritySuite : ModInitializer {
                 ipData.saveData()
 
                 ctx.source.sendFeedback({
-                    Text.literal("Player with username '" + playerProfile.name.toString() + "' and UUID '" + playerUuid + "' has had their IP locked to " + playerIp)
+                    Text.literal("Player with username '" + playerProfile.name.toString() + "' and UUID '" + playerUuid + "' has had their IP locked to " + displayIp(playerIp))
                 }, true)
             } else {
                 ctx.source.sendFeedback({
@@ -246,7 +250,7 @@ class IPSecuritySuite : ModInitializer {
             ipData.lockIp(playerUuid, lastPlayerIp)
 
             ctx.source.sendFeedback({
-                Text.literal("Player with username '" + playerProfile.name + "' and UUIDa '" + playerUuid + "' has had their IP locked to their last logon IP, which was " + lastPlayerIp)
+                Text.literal("Player with username '" + playerProfile.name + "' and UUID '" + playerUuid + "' has had their IP locked to their last logon IP, which was " + displayIp(lastPlayerIp))
             }, true)
 
             ipData.saveData()
@@ -355,6 +359,48 @@ class IPSecuritySuite : ModInitializer {
         return 1
     }
 
+    private fun setIpReveal(ctx: CommandContext<ServerCommandSource>): Int {
+        val ipRevealSetting = BoolArgumentType.getBool(ctx, "value")
+
+        ipData.ipData.revealIp = ipRevealSetting
+
+        if (ipRevealSetting) {
+            ctx.source.sendFeedback({
+                Text.literal("Now, whenever an admin locks someone's IP, the newly-locked IP will also be revealed to server operators. Welcome to the danger-dome!")
+            }, true)
+        } else {
+            ctx.source.sendFeedback({
+                Text.literal("IPs are hidden when an admin locks someone's IP.")
+            }, true)
+        }
+
+        ipData.saveData()
+
+        return 1
+    }
+
+    private fun getIpReveal(ctx: CommandContext<ServerCommandSource>): Int {
+        if(ipData.ipData.revealIp == true) {
+            ctx.source.sendFeedback({
+                Text.literal("Whenever an admin locks someone's IP, the newly-locked IP will also be revealed to server operators. Welcome to the danger-dome!")
+            }, false)
+        } else {
+            ctx.source.sendFeedback({
+                Text.literal("IPs are hidden when an admin locks someone's IP.")
+            }, false)
+        }
+
+        return 1;
+    }
+
+    private fun displayIp(ip: String): String {
+        if(ipData.ipData.revealIp == true) {
+            return ip
+        } else {
+            return "their last IP"
+        }
+    }
+
     private fun getVpnMode(ctx: CommandContext<ServerCommandSource>): Int {
         if(ipData.ipData.vpnAllowed == false) {
             ctx.source.sendFeedback({
@@ -386,6 +432,10 @@ class IPSecuritySuite : ModInitializer {
 
     private fun hasOp(src: ServerCommandSource): Boolean {
         return src.hasPermissionLevel(3)
+    }
+
+    private fun hasOwner(src: ServerCommandSource): Boolean {
+        return src.hasPermissionLevel(4)
     }
 
     private fun hasSelfLock(src: ServerCommandSource): Boolean {

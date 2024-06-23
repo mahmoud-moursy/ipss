@@ -385,7 +385,7 @@ class IPSecuritySuite : ModInitializer {
     }
 
     private fun hasOp(src: ServerCommandSource): Boolean {
-        return src.hasPermissionLevel(2)
+        return src.hasPermissionLevel(3)
     }
 
     private fun hasSelfLock(src: ServerCommandSource): Boolean {

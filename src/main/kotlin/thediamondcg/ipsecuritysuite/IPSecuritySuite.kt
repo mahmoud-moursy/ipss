@@ -18,6 +18,7 @@ import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.text.Text
 import okhttp3.Request
 import okhttp3.Response
+import java.net.URI
 
 val MOD_ID: String = "ip-security-suite"
 
@@ -74,6 +75,7 @@ class IPSecuritySuite : ModInitializer {
         root = root.then(config)
         root = root.then(vpn)
         root = root.then(locking)
+        root = root.executes(this::tutorialMessage)
 
 //        val ipLock = literal("ip-lock").requires { src: ServerCommandSource -> src.hasPermissionLevel(2) }
 //            .then(argument("player_name", GameProfileArgumentType.gameProfile()).executes(this::ipLock))
@@ -105,7 +107,7 @@ class IPSecuritySuite : ModInitializer {
 
         CommandRegistrationCallback.EVENT.register { commandDispatcher: CommandDispatcher<ServerCommandSource>,
                                                      _commandRegistryAccess: CommandRegistryAccess,
-                                                     _registrationEnvironment: RegistrationEnvironment ->
+                                                     registrationEnvironment: RegistrationEnvironment ->
 //            commandDispatcher.register(ipLock)
 //            commandDispatcher.register(lockLast)
 //            commandDispatcher.register(selfLockMode)
@@ -114,7 +116,9 @@ class IPSecuritySuite : ModInitializer {
 //            commandDispatcher.register(setVpn)
 //            commandDispatcher.register(eraseIp)
 //            commandDispatcher.register(setApiKey)
-            commandDispatcher.register(root)
+            if(registrationEnvironment.dedicated) {
+                commandDispatcher.register(root)
+            }
         }
 
         ServerPlayConnectionEvents.INIT.register { serverPlayNetworkHandler: ServerPlayNetworkHandler,
@@ -128,13 +132,18 @@ class IPSecuritySuite : ModInitializer {
 
                 val vpnApiKey = ipData.getApiKey();
 
-                println(!validIp)
-                println(ipData.ipData.vpnAllowed == false)
-                println(vpnApiKey != null)
+                println("IPSS: Login IP ${player.ip} is " + if(ipData.strictlyValidIp(player.uuid, player.ip)) "approved for logon" else "unregistered")
+                if(ipData.ipData.vpnAllowed == false) {
+                    println("IPSS: VPN logins are disabled.")
+                    println(if(vpnApiKey != null) "IPSS: VPN API key is set!" else "IPSS: VPN API key is unset! VPN FILTERING WILL NOT WORK!")
+                } else {
+                    println("IPSS: VPNs are allowed to log in.")
+                }
+
 
                 if (!validIp) {
-                    serverPlayNetworkHandler.disconnect(Text.literal("Someone tried logging in with unauthorized IP: " + player.ip))
-                    minecraftServer.sendMessage(Text.literal("Someone unauthorized tried to login to " + player.name + "'s account!"))
+                    serverPlayNetworkHandler.disconnect(Text.literal("Someone tried logging into account ${player.name} with unauthorized IP: ${player.ip}"))
+                    minecraftServer.sendMessage(Text.literal("Someone unauthorized tried to login to ${player.name}'s account!"))
                 }
 
                 if ((ipData.ipData.vpnAllowed == false) && !ipData.strictlyValidIp(player.uuid, player.ip) && (vpnApiKey != null)) {
@@ -173,6 +182,12 @@ class IPSecuritySuite : ModInitializer {
         }
     }
 
+    private fun tutorialMessage(ctx: CommandContext<ServerCommandSource>): Int {
+        ctx.source.sendFeedback({ Text.literal("IP Security Suite -- ").append(Text.of(URI("https://github.com/T-O-R-U-S/ipss"))) }, false)
+
+        return 1
+    }
+
     private fun ipLock(ctx: CommandContext<ServerCommandSource>): Int {
         // When an operator does the command with @a, it can select several profiles.
         val selectedProfiles = GameProfileArgumentType.getProfileArgument(ctx, "player_name")
@@ -192,7 +207,7 @@ class IPSecuritySuite : ModInitializer {
                 }, true)
             } else {
                 ctx.source.sendFeedback({
-                    Text.literal("Player with username '" + playerProfile.name.toString() + "' and UUID '" + playerUuid + "' did not get their IP locked due to an error. Whoops...")
+                    Text.literal("Player with username '" + playerProfile.name.toString() + "' and UUID '" + playerUuid + "' did not get their IP locked because they are offline. Use `/ip lock last <username>` instead!")
                 }, true)
             }
         }
